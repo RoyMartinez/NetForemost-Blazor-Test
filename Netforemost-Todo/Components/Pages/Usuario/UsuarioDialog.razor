@@ -1,0 +1,56 @@
+﻿@using Netforemost_Todo.Dtos
+@inject DialogService DialogService
+
+<RadzenTemplateForm TItem="Usuario" Data="@Usuario" Submit="@SubmitForm">
+    <RadzenFieldset>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <RadzenLabel Text="Nombre" />
+                <RadzenTextBox @bind-Value="@Usuario.Nombre" Name="Username" />
+                <RadzenRequiredValidator Component="Username" Text="Username is required" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <RadzenLabel Text="Apellidos" />
+                <RadzenTextBox @bind-Value="@Usuario.Apellido" Name="Username" />
+                <RadzenRequiredValidator Component="Username" Text="Username is required" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <RadzenLabel Text="Correo" />
+                <RadzenTextBox @bind-Value="@Usuario.Correo" Name="Username" />
+                <RadzenRequiredValidator Component="Username" Text="Username is required" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <RadzenLabel Text="Telefono" />
+                <RadzenTextBox @bind-Value="@Usuario.Telefono" Name="Username" />
+                <RadzenRequiredValidator Component="Username" Text="Username is required" />
+            </div>
+        </div>
+    </RadzenFieldset>
+    <div class="row justify-content-center">
+        <div class="col-md-12 d-flex align-items-end justify-content-center" style="margin-top: 16px;">
+            <RadzenButton ButtonType="ButtonType.Submit" Text="Save" Icon="save" />
+            <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Cancel" Click="@CancelForm" Class="ml-2" />
+        </div>
+    </div>
+</RadzenTemplateForm>
+
+@code {
+    [Parameter] public Usuario Usuario { get; set; }
+
+    private void SubmitForm()
+    {
+        DialogService.Close(Usuario);
+    }
+
+    private void CancelForm()
+    {
+        DialogService.Close();
+    }
+
+}

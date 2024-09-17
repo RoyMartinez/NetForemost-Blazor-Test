@@ -1,0 +1,206 @@
+﻿@page "/usuario/{UsuarioId}/Tareas"
+@using Netforemost_Todo.Services
+@using Netforemost_Todo.Dtos
+@using Netforemost_Todo.Components.Pages.Usuario
+@rendermode InteractiveServer
+@inject TareaService TareaService
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+<style>
+    .action-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .data-grid-container {
+        display: flex;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .data-grid {
+        width: 100%;
+        max-width: 1200px;
+    }
+
+    .row-deleted {
+        background-color: #f8d7da; /* Color de fondo rojo claro */
+        color: #721c24; /* Color del texto rojo oscuro */
+    }
+</style>
+
+<h3>Tareas</h3>
+<RadzenButton Icon="arrow_left" Text="Volver" Click="@(() => NavigationManager.NavigateTo("/"))" Class="mb-3" />
+<RadzenButton ButtonStyle="ButtonStyle.Success" Icon="add_circle_outline" Text="Crear nueva tarea" Click="@AgregarTarea" Class="mb-3" />
+<div class="data-grid-container">
+    <RadzenDataGrid Data="@tareas" TItem="Dtos.Tarea" LoadData="@LoadData" Count="@totalCount" AllowPaging="true" AllowSorting="true" PageSize="5">
+        <Columns>
+            <RadzenDataGridColumn TItem="Dtos.Tarea" Property="Titulo" Title="Titulo" />
+            <RadzenDataGridColumn TItem="Dtos.Tarea" Property="FechaVencimiento" Title="F. Vencimiento" />
+            <RadzenDataGridColumn TItem="Dtos.Tarea" Property="Finalizado" Title="Finalizado" />
+            <RadzenDataGridColumn TItem="Dtos.Tarea" Property="Tags" Title="Tags" />
+            <RadzenDataGridColumn TItem="Dtos.Tarea" Property="Eliminado" Title="Eliminado" />
+            <RadzenDataGridColumn TItem="Dtos.Tarea" Property="Id" Title="Acciones" TextAlign="TextAlign.Center">
+                <Template Context="TareaItem">
+                    <div class="action-buttons">
+                        <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Secondary" Class="m-1" Click="@(() =>  EditarTarea(TareaItem))" @onclick:stopPropagation="true" />
+                        <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Class="m-1" Click="@(() =>  EliminarTarea(TareaItem.Id))" @onclick:stopPropagation="true" />
+                    </div>
+                </Template>
+            </RadzenDataGridColumn> 
+        </Columns>
+    </RadzenDataGrid>
+</div>
+
+@code {
+    [Parameter] public string UsuarioId { get; set; } = "0";
+    public int UsuarioIdInt => int.TryParse(UsuarioId, out var id) ? id : 0;
+    private List<Dtos.Tarea> tareas = new List<Dtos.Tarea>();
+    private int totalCount;
+    private int top;
+    private int? skip;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData(new LoadDataArgs() { Top =5, Skip = 0 });
+    }
+
+    private async Task LoadData(LoadDataArgs args)
+    {
+
+        int? PageSize = args.Top;
+        int? PageNumber = (args.Skip / PageSize) + 1;
+        var response = await TareaService.GetTareasAsync(UsuarioIdInt, PageSize, PageNumber);
+        tareas = response.Items;
+        totalCount = response.Metadata.TotalCount;
+    }
+    private async Task EliminarTarea(int tarea)
+    {
+        try
+        {
+            var confirmed = await DialogService.Confirm(
+                "¿Estás seguro de eliminar esta tarea?",
+                "Confirmar Eliminación",
+                new ConfirmOptions() { OkButtonText = "Sí", CancelButtonText = "No" });
+
+            if (!confirmed.GetValueOrDefault())
+                return;
+
+            var result = await TareaService.DeleteTareaAsync(UsuarioIdInt, tarea);
+            if (!result)
+            {
+
+                NotificationService.Notify(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Error,
+                        Summary = "Error",
+                        Detail = "Hubo un error al eliminar la tarea. Por favor, intente nuevamente.",
+                        Duration = 4000
+                    });
+                return;
+            }
+
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Eliminación Exitosa",
+                    Detail = "tarea eliminada correctamente",
+                    Duration = 4000
+                });
+
+            await LoadData(new LoadDataArgs() { Top = 5, Skip = 0 });
+        }
+        catch (Exception)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "Hubo un error al eliminar la tarea. Por favor, intente nuevamente.",
+                    Duration = 4000
+                });
+        }
+    }
+
+    private async Task AgregarTarea()
+    {
+        try{
+            var result = await DialogService.OpenAsync<TareaDialog>("Nueva tarea",
+                new Dictionary<string, object>() { { "Tarea", new Dtos.Tarea() {
+                    Titulo = "Titulo",
+                    Descripcion = "descripcion",
+                    Finalizado = false,
+                    FechaVencimiento = DateTime.Now,
+                    Tags = string.Empty,
+                    IdPrioridad = 1
+                } } });
+
+            if (result is null)
+            {
+                return;
+            }
+            if (result.Id < 0)
+            {
+                return;
+            }
+            await TareaService.AddTareaAsync(UsuarioIdInt, result);
+            await LoadData(new LoadDataArgs() { Top = 5, Skip = 0 });
+
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Creacion exitosa",
+                    Detail = "Usuario creado correctamente",
+                    Duration = 4000
+                });
+        }
+        catch (Exception)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "Hubo un error al crear la tarea. Por favor, intente nuevamente.",
+                    Duration = 4000
+                });
+        }
+    }
+
+    private async Task EditarTarea(Dtos.Tarea tarea)
+    {
+        try
+        {
+            var result = await DialogService.OpenAsync<TareaDialog>("Editar Tarea",
+                new Dictionary<string, object>() { { "Tarea", tarea } });
+            if (result is null)
+            {
+                return;
+            }
+            if (result.Id < 0)
+            {
+                return;
+            }
+            await TareaService.UpdateTareaAsync(UsuarioIdInt, result);
+            await LoadData(new LoadDataArgs() { Top = 5, Skip = 0 });
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Actualizacion exitosa",
+                Detail = "Usuario actualizado correctamente",
+                Duration = 4000
+            });
+        }
+        catch (Exception)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "Ocurrio un problema al actualizar. Por favor, intente nuevamente.",
+                    Duration = 4000
+                });
+        }
+    }
+}

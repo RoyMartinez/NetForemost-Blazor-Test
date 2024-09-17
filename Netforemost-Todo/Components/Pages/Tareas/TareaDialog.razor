@@ -1,0 +1,76 @@
+﻿@using Netforemost_Todo.Dtos
+@using Netforemost_Todo.Services
+@inject DialogService DialogService
+@inject PrioridadService PrioridadService
+
+<RadzenTemplateForm TItem="Tarea" Data="@Tarea" Submit="@SubmitForm">
+    <RadzenFieldset>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <RadzenLabel Text="Título" />
+                <RadzenTextBox @bind-Value="@Tarea.Titulo" Name="Titulo" />
+                <RadzenRequiredValidator Component="Titulo" Text="El título es obligatorio" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <RadzenLabel Text="Descripción" />
+                <RadzenTextBox @bind-Value="@Tarea.Descripcion" Name="Descripcion" />
+                <RadzenRequiredValidator Component="Descripcion" Text="La descripción es obligatoria" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <RadzenLabel Text="Fecha de Vencimiento" />
+                <RadzenDatePicker @bind-Value="@Tarea.FechaVencimiento" Name="FechaVencimiento" />
+                <RadzenRequiredValidator Component="FechaVencimiento" Text="La fecha de vencimiento es obligatoria" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <RadzenLabel Text="Finalizada" />
+                <RadzenCheckBox @bind-Value="@Tarea.Finalizado" Name="Finalizado" Text="Finalizado" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <RadzenLabel Text="Tags" />
+                <RadzenTextBox @bind-Value="@Tarea.Tags" Name="Tags" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <RadzenLabel Text="Prioridad" />
+                <RadzenDropDown @bind-Value="@Tarea.IdPrioridad" Data="@prioridades" TextProperty="Nombre" ValueProperty="Id" Name="Prioridad" />
+            </div>
+        </div>
+    </RadzenFieldset>
+    <div class="row justify-content-center">
+        <div class="col-md-12 d-flex align-items-end justify-content-center" style="margin-top: 16px;">
+            <RadzenButton ButtonType="ButtonType.Submit" Text="Guardar" Icon="save" />
+            <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Cancelar" Click="@CancelForm" Class="ml-2" />
+        </div>
+    </div>
+</RadzenTemplateForm>
+
+@code {
+    [Parameter] public Tarea Tarea { get; set; }
+    private List<Prioridad> prioridades = new List<Prioridad>(); // Asegúrate de inicializar esto con tus datos de prioridad
+
+    protected override async Task OnInitializedAsync()
+    {
+        var responsePrioridades = await PrioridadService.GetPrioridadAsync(null,null);
+        prioridades = responsePrioridades.Items;
+    }
+
+    private void SubmitForm()
+    {
+        DialogService.Close(Tarea);
+    }
+
+    private void CancelForm()
+    {
+        DialogService.Close(new Tarea() { Id = -1});
+    }
+}
+

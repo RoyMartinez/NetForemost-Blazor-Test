@@ -1,0 +1,200 @@
+﻿@page "/"
+@using Netforemost_Todo.Services
+@using Netforemost_Todo.Dtos
+@using Netforemost_Todo.Components.Pages.Usuario
+@rendermode InteractiveServer
+@inject UsuarioService UsuarioService
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService 
+@inject NotificationService NotificationService
+<style>
+    .action-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .data-grid-container {
+        display: flex;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .data-grid {
+        width: 100%;
+        max-width: 1200px; 
+    }
+</style>
+
+<h3>Usuarios</h3>
+
+<RadzenButton Icon="add_circle_outline" Text="Create New Player" Click="@AgregarUsuario" Class="mb-3" />
+<div class="data-grid-container">
+    <RadzenDataGrid Data="@usuarios" TItem="Dtos.Usuario" LoadData="@LoadData" Count="@totalCount"  AllowPaging="true" AllowSorting="true" PageSize="5">
+        <Columns>
+            <RadzenDataGridColumn TItem="Dtos.Usuario" Property="Id" Title="ID" />
+            <RadzenDataGridColumn TItem="Dtos.Usuario" Property="Nombre" Title="Nombre" />
+            <RadzenDataGridColumn TItem="Dtos.Usuario" Property="Apellido" Title="Apellido" />
+            <RadzenDataGridColumn TItem="Dtos.Usuario" Property="Correo" Title="Correo" />
+            <RadzenDataGridColumn TItem="Dtos.Usuario" Property="Telefono" Title="Teléfono" />
+            <RadzenDataGridColumn TItem="Dtos.Usuario" Property="Id" Title="Acciones" TextAlign="TextAlign.Center">
+                <Template Context="UsuarioItem">
+                    <div class="action-buttons">
+                        <RadzenButton Icon="visibility" ButtonStyle="ButtonStyle.Light" Class="m-1" Click="@(() => VerTareasUsuario(UsuarioItem.Id))" />
+                        <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Secondary" Class="m-1" Click="@(() =>  EditarUsuario(UsuarioItem))" @onclick:stopPropagation="true" />
+                        <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Class="m-1" Click="@(() =>  EliminarUsuario(UsuarioItem.Id))" @onclick:stopPropagation="true" />
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</div>
+
+@code {
+    private List<Dtos.Usuario> usuarios = new List<Dtos.Usuario>();
+    private int totalCount, pageNumber;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData(new LoadDataArgs() { Top = 5, Skip = 0 });
+    }
+
+    private async Task LoadData(LoadDataArgs args)
+    {
+        int? PageSize = args.Top;
+        int? PageNumber = (args.Skip / PageSize )+ 1;
+        var response = await UsuarioService.GetUsuariosAsync(PageSize, PageNumber);
+        usuarios = response.Items;
+        totalCount = response.Metadata.TotalCount;
+        pageNumber = response.Metadata.PageNumber;
+
+        StateHasChanged();
+    }
+    private async Task EliminarUsuario(int usuario)
+    {
+        try
+        {
+            var confirmed = await DialogService.Confirm(
+                    "¿Estás seguro de eliminar este usuario? Se eliminarán todas las tareas asociadas al mismo.",
+                    "Confirmar Eliminación",
+                    new ConfirmOptions() { OkButtonText = "Sí", CancelButtonText = "No" });
+
+            if (!confirmed.GetValueOrDefault())
+                return;
+
+            var result = await UsuarioService.DeleteUsuariosAsync(usuario);
+            if (!result)
+            {
+
+                NotificationService.Notify(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Error,
+                        Summary = "Error",
+                        Detail = "Hubo un error al eliminar el usuario. Por favor, intente nuevamente.",
+                        Duration = 4000
+                    });
+                return;
+            }
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Eliminación Exitosa",
+                    Detail = "Usuario eliminado correctamente",
+                    Duration = 4000
+                });
+
+            await LoadData(new LoadDataArgs() { Top = 5, Skip = 0 });
+
+        }
+        catch (Exception)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "Hubo un error al eliminar el usuario. Por favor, intente nuevamente.",
+                    Duration = 4000
+                });
+        }
+    }
+
+    private void VerTareasUsuario(int usuario)
+    {
+        NavigationManager.NavigateTo($"/usuario/{usuario}/Tareas");
+    }
+
+
+    private async Task AgregarUsuario()
+    {
+        try
+        {
+            var result = await DialogService.OpenAsync<UsuarioDialog>("Crear Usuario",
+                new Dictionary<string, object>() { { "Usuario", new Dtos.Usuario() {
+                Nombre = "Ingrese Nombre",
+                Apellido = "Ingrese Apellido",
+                Correo = "Ingrese Correo",
+                Telefono = "+50588887777"
+            } } });
+
+            if (result is null)
+            {
+                return;
+            }
+            var updatedItem = (Dtos.Usuario)result;
+                await UsuarioService.AddUsuariosAsync(updatedItem);
+            await LoadData(new LoadDataArgs() { Top = 5, Skip = 0 });
+
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Creacion exitosa",
+                    Detail = "Usuario creado correctamente",
+                    Duration = 4000
+                });
+        }
+        catch (Exception)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "Hubo un error al añadir el usuario. Por favor, intente nuevamente.",
+                    Duration = 4000
+                });
+        }
+    }
+
+    private async Task EditarUsuario(Dtos.Usuario usuario)
+    {
+        try
+        {
+            var result = await DialogService.OpenAsync<UsuarioDialog>("Editar Usuario",
+                new Dictionary<string, object>() { { "Usuario", usuario } });
+
+            if (result != null)
+            {
+                var updatedItem = (Dtos.Usuario)result;
+                await UsuarioService.UpdateUsuariosAsync(updatedItem);
+            }
+            await LoadData(new LoadDataArgs() { Top = 5, Skip = 0 });
+
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Actualizacion exitosa",
+                    Detail = "Usuario actualizado correctamente",
+                    Duration = 4000
+                });
+        }
+
+        catch (Exception)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "Hubo un error al actualizar el usuario. Por favor, intente nuevamente.",
+                    Duration = 4000
+                });
+        }
+    }
+}

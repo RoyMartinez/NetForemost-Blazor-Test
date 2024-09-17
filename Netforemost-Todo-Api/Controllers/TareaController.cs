@@ -104,6 +104,7 @@ public class TareaController(ITareaService _Service) : Controller
     private Tareas MapWithIds(int UserId,int TareaId, TareaRequest Request) => new Tareas()
     {
         IdUsuario = UserId,
+        IdPrioridad = Request.IdPrioridad,
         Id = TareaId,
         Titulo = Request.Titulo,
         Descripcion = Request.Descripcion,

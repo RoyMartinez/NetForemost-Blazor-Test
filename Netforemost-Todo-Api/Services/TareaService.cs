@@ -31,6 +31,7 @@ public class TareaService: BaseService<Tareas>,ITareaService
                     tarea.IdUsuario,
                     tarea.IdPrioridad,
                     tarea.Titulo,
+                    tarea.Descripcion,
                     tarea.FechaVencimiento,
                     tarea.Finalizado,
                     tarea.Eliminado,
